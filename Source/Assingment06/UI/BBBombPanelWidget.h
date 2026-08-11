@@ -6,6 +6,8 @@
 #include "Blueprint/UserWidget.h"
 #include "BBBombPanelWidget.generated.h"
 
+class UBBChatInputWidget;
+
 /**
  * @brief 화면 전체를 담당하는 클래스
  * 
@@ -22,4 +24,13 @@ UCLASS()
 class ASSINGMENT06_API UBBBombPanelWidget : public UUserWidget
 {
 	GENERATED_BODY()
+
+public:
+	/** @brief 폭탄 패널 내부에 배치된 채팅 위젯을 반환합니다. */
+	UBBChatInputWidget* GetChatInputWidget() const;
+
+protected:
+	/** @brief WBP_BBBombPanel 안에 자식으로 배치된 채팅 입력 위젯입니다. */
+	UPROPERTY(meta = (BindWidget))
+	TObjectPtr<UBBChatInputWidget> WBP_BBChatInput;
 };

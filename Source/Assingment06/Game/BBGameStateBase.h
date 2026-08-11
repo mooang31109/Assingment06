@@ -13,4 +13,12 @@ UCLASS()
 class ASSINGMENT06_API ABBGameStateBase : public AGameStateBase
 {
 	GENERATED_BODY()
+
+public:
+	/**
+	 * @brief 서버에서 새로 접속한 플레이어의 이름을 모든 클라이언트에 알립니다.
+	 * @param PlayerName 접속 알림에 표시할 플레이어 이름입니다.
+	 */
+	UFUNCTION(NetMulticast, Reliable)
+	void MulticastRPCBroadcastLoginMessage(const FString& PlayerName);
 };
