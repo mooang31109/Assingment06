@@ -98,3 +98,12 @@ void ABBPlayerController::ClientRPCReceiveChatMessage_Implementation(const FStri
 		}
 	}
 }
+
+void ABBPlayerController::ClientRPCSetBombStatus_Implementation(const FString& StatusText)
+{
+	// 로컬 폭탄 패널의 상단 화면에 서버가 결정한 상태를 표시합니다.
+	if (IsValid(BombPanelWidgetInstance))
+	{
+		BombPanelWidgetInstance->SetBombStatusText(StatusText);
+	}
+}

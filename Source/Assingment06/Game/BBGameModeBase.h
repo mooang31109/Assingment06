@@ -53,7 +53,19 @@ public:
 	/** @brief 정답과 입력을 비교하여 OUT 또는 nSnB 형식의 문자열을 반환합니다. */
 	FString JudgeResult(const FString& SecretNumber, const FString& GuessNumber) const;
 
+	/** @brief 3S 승리 또는 모든 플레이어의 기회 소진에 따른 무승부를 판정합니다. */
+	void JudgeGame(ABBPlayerController* Sender, int32 StrikeCount);
+
+	/** @brief 새 정답을 생성하고 모든 플레이어의 시도 횟수를 초기화합니다. */
+	void ResetGame();
+
 protected:
 	/** @brief 현재 게임에서 사용하는 서버 전용 정답 숫자입니다. */
 	FString SecretNumberString;
+
+	/** @brief 결과 표시 중 추가 숫자 판정을 막기 위한 서버 전용 상태입니다. */
+	bool bGameEnded = false;
+
+	/** @brief 결과를 잠시 표시한 뒤 게임을 초기화하는 서버 타이머입니다. */
+	FTimerHandle ResetGameTimerHandle;
 };

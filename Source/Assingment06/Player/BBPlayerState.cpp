@@ -47,3 +47,9 @@ void ABBPlayerState::IncreaseGuessCount()
 	// 최대 시도 횟수를 넘지 않도록 현재 횟수를 1 증가시킵니다.
 	CurrentGuessCount = FMath::Min(CurrentGuessCount + 1, MaxGuessCount);
 }
+
+void ABBPlayerState::ResetGuessCount()
+{
+	// 새 게임을 시작할 수 있도록 사용한 시도 횟수를 초기화합니다.
+	CurrentGuessCount = 0;
+}
