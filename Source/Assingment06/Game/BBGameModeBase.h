@@ -59,6 +59,21 @@ public:
 	/** @brief 새 정답을 생성하고 모든 플레이어의 시도 횟수를 초기화합니다. */
 	void ResetGame();
 
+	/** @brief 지정한 플레이어의 턴을 시작하고 서버 타이머를 초기화합니다. */
+	void StartTurn(class ABBPlayerState* PlayerState);
+
+	/** @brief 현재 턴 다음의 기회가 남은 플레이어에게 턴을 넘깁니다. */
+	void AdvanceTurn();
+
+	/** @brief 서버에서 1초마다 남은 시간을 감소시키고 클라이언트 UI를 갱신합니다. */
+	void UpdateTurnTimer();
+
+	/** @brief 숫자를 입력하지 않은 채 시간이 끝난 현재 플레이어를 처리합니다. */
+	void HandleTurnTimeout();
+
+	/** @brief 현재 서버 턴 정보를 모든 클라이언트 UI에 전송합니다. */
+	void BroadcastTurnInfo();
+
 protected:
 	/** @brief 현재 게임에서 사용하는 서버 전용 정답 숫자입니다. */
 	FString SecretNumberString;
@@ -68,4 +83,13 @@ protected:
 
 	/** @brief 결과를 잠시 표시한 뒤 게임을 초기화하는 서버 타이머입니다. */
 	FTimerHandle ResetGameTimerHandle;
+
+	/** @brief 서버에서 턴의 남은 시간을 감소시키는 반복 타이머입니다. */
+	FTimerHandle TurnTimerHandle;
+
+	/** @brief 한 플레이어에게 주어지는 기본 턴 시간입니다. */
+	int32 TurnDuration = 10;
+
+	/** @brief 현재 턴에 유효한 숫자가 제출되었는지 확인합니다. */
+	bool bSubmittedGuessThisTurn = false;
 };

@@ -47,6 +47,10 @@ public:
 	/** @brief 서버가 소유 클라이언트의 폭탄 상태 화면을 갱신합니다. */
 	UFUNCTION(Client, Reliable)
 	void ClientRPCSetBombStatus(const FString& StatusText);
+
+	/** @brief 서버가 현재 담당자, 남은 시간, 개인 시도 횟수를 소유 클라이언트 UI에 전달합니다. */
+	UFUNCTION(Client, Reliable)
+	void ClientRPCUpdateTurnInfo(const FString& PlayerName, int32 RemainingTime, const FString& GuessCountString);
 	
 	/**
 	 * @brief 소유 클라이언트가 서버에 채팅 메시지 방송을 요청합니다.
