@@ -5,6 +5,7 @@
 
 #include "Assingment06/Game/BBGameStateBase.h"
 #include "Assingment06/Player/BBPlayerController.h"
+#include "Assingment06/Player/BBPlayerState.h"
 #include "EngineUtils.h"
 #include "GameFramework/PlayerState.h"
 
@@ -86,8 +87,27 @@ void ABBGameModeBase::BroadcastChatMessage(ABBPlayerController* Sender, const FS
 		}
 
 		// 유효한 숫자는 서버의 정답과 비교한 결과를 붙여 방송합니다.
+		// 서버 권한의 PlayerState에서 발신자의 개인별 시도 횟수를 관리합니다.
+		ABBPlayerState* BBPlayerState = Sender->GetPlayerState<ABBPlayerState>();
+		if (IsValid(BBPlayerState) == false)
+		{
+			return;
+		}
+
+		// 최대 시도 횟수를 모두 사용한 플레이어의 추가 숫자 입력은 판정하지 않습니다.
+		if (BBPlayerState->HasRemainingGuess() == false)
+		{
+			Sender->ClientRPCReceiveChatMessage(TEXT("남은 기회가 없습니다"));
+			return;
+		}
+
+		// 유효한 숫자 입력만 시도 횟수를 1 증가시킵니다.
+		BBPlayerState->IncreaseGuessCount();
+
 		const FString JudgeResultString = JudgeResult(SecretNumberString, Message);
-		const FString GuessResultMessage = FormattedMessage + TEXT(" -> ") + JudgeResultString;
+		const FString GuessResultMessage = FormattedMessage
+			+ TEXT(" -> ") + JudgeResultString
+			+ TEXT(" ") + BBPlayerState->GetGuessCountString();
 
 		for (TActorIterator<ABBPlayerController> It(GetWorld()); It; ++It)
 		{
