@@ -8,6 +8,7 @@
 
 class UBBChatInputWidget;
 class UTextBlock;
+class UButton;
 
 /**
  * @brief 화면 전체를 담당하는 클래스
@@ -27,6 +28,12 @@ class ASSINGMENT06_API UBBBombPanelWidget : public UUserWidget
 	GENERATED_BODY()
 
 public:
+	/** @brief 위젯 생성 후 키패드 버튼 이벤트를 등록합니다. */
+	virtual void NativeConstruct() override;
+
+	/** @brief 위젯 제거 전에 키패드 버튼 이벤트를 해제합니다. */
+	virtual void NativeDestruct() override;
+
 	/** @brief 폭탄 패널 내부에 배치된 채팅 위젯을 반환합니다. */
 	UBBChatInputWidget* GetChatInputWidget() const;
 
@@ -37,6 +44,25 @@ public:
 	void SetTurnInfo(const FString& PlayerName, int32 RemainingTime, const FString& GuessCountString);
 
 protected:
+	/** @brief 지정한 숫자를 현재 키패드 입력에 추가합니다. */
+	void AppendKeypadDigit(const TCHAR Digit);
+
+	/** @brief 현재 키패드 입력을 폭탄 상단 화면에 표시합니다. */
+	void UpdateKeypadDisplay();
+
+	UFUNCTION() void OnButton1Clicked();
+	UFUNCTION() void OnButton2Clicked();
+	UFUNCTION() void OnButton3Clicked();
+	UFUNCTION() void OnButton4Clicked();
+	UFUNCTION() void OnButton5Clicked();
+	UFUNCTION() void OnButton6Clicked();
+	UFUNCTION() void OnButton7Clicked();
+	UFUNCTION() void OnButton8Clicked();
+	UFUNCTION() void OnButton9Clicked();
+	UFUNCTION() void OnClearButtonClicked();
+	UFUNCTION() void OnSubmitButtonClicked();
+	UFUNCTION() void OnBackspaceButtonClicked();
+
 	/** @brief WBP_BBBombPanel 안에 자식으로 배치된 채팅 입력 위젯입니다. */
 	UPROPERTY(meta = (BindWidget))
 	TObjectPtr<UBBChatInputWidget> WBP_BBChatInput;
@@ -56,4 +82,20 @@ protected:
 	/** @brief 로컬 플레이어의 현재/최대 시도 횟수를 표시합니다. */
 	UPROPERTY(meta = (BindWidget))
 	TObjectPtr<UTextBlock> TextBlock_GuessCount;
+
+	UPROPERTY(meta = (BindWidget)) TObjectPtr<UButton> Button_1;
+	UPROPERTY(meta = (BindWidget)) TObjectPtr<UButton> Button_2;
+	UPROPERTY(meta = (BindWidget)) TObjectPtr<UButton> Button_3;
+	UPROPERTY(meta = (BindWidget)) TObjectPtr<UButton> Button_4;
+	UPROPERTY(meta = (BindWidget)) TObjectPtr<UButton> Button_5;
+	UPROPERTY(meta = (BindWidget)) TObjectPtr<UButton> Button_6;
+	UPROPERTY(meta = (BindWidget)) TObjectPtr<UButton> Button_7;
+	UPROPERTY(meta = (BindWidget)) TObjectPtr<UButton> Button_8;
+	UPROPERTY(meta = (BindWidget)) TObjectPtr<UButton> Button_9;
+	UPROPERTY(meta = (BindWidget)) TObjectPtr<UButton> Button_Clear;
+	UPROPERTY(meta = (BindWidget)) TObjectPtr<UButton> Button_Submit;
+	UPROPERTY(meta = (BindWidget)) TObjectPtr<UButton> Button_Backspace;
+
+	/** @brief 로컬 키패드로 입력 중인 최대 세 자리 숫자입니다. */
+	FString KeypadInputString;
 };
