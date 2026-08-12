@@ -33,6 +33,9 @@ public:
 	/** @brief 폭탄 상단 화면에 현재 해제 상태를 표시합니다. */
 	void SetBombStatusText(const FString& StatusText);
 
+	/** @brief 서버에서 받은 현재 담당자, 남은 시간, 개인 시도 횟수를 표시합니다. */
+	void SetTurnInfo(const FString& PlayerName, int32 RemainingTime, const FString& GuessCountString);
+
 protected:
 	/** @brief WBP_BBBombPanel 안에 자식으로 배치된 채팅 입력 위젯입니다. */
 	UPROPERTY(meta = (BindWidget))
@@ -41,4 +44,16 @@ protected:
 	/** @brief 폭탄 해제 상태를 표시하는 상단 TextBlock입니다. */
 	UPROPERTY(meta = (BindWidget))
 	TObjectPtr<UTextBlock> TextBlock_BombStatus;
+
+	/** @brief 현재 폭탄 해제 담당자를 표시합니다. */
+	UPROPERTY(meta = (BindWidget))
+	TObjectPtr<UTextBlock> TextBlock_CurrentPlayer;
+
+	/** @brief 서버에서 동기화된 남은 턴 시간을 표시합니다. */
+	UPROPERTY(meta = (BindWidget))
+	TObjectPtr<UTextBlock> TextBlock_RemainingTime;
+
+	/** @brief 로컬 플레이어의 현재/최대 시도 횟수를 표시합니다. */
+	UPROPERTY(meta = (BindWidget))
+	TObjectPtr<UTextBlock> TextBlock_GuessCount;
 };

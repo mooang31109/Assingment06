@@ -48,6 +48,12 @@ void ABBGameModeBase::OnPostLogin(AController* NewPlayer)
 	if (IsValid(BBGameState))
 	{
 		BBGameState->MulticastRPCBroadcastLoginMessage(PlayerName);
+
+		// 진행 중인 턴이 없다면 첫 번째 접속 플레이어의 턴을 시작합니다.
+		if (IsValid(BBGameState->GetCurrentTurnPlayerState()) == false)
+		{
+			StartTurn(Cast<ABBPlayerState>(JoinedPlayerState));
+		}
 	}
 }
 
@@ -86,6 +92,19 @@ void ABBGameModeBase::BroadcastChatMessage(ABBPlayerController* Sender, const FS
 			return;
 		}
 
+		ABBGameStateBase* BBGameState = GetGameState<ABBGameStateBase>();
+		ABBPlayerState* SenderBBPlayerState = Sender->GetPlayerState<ABBPlayerState>();
+
+		// 자기 턴이 아니거나 서버의 남은 시간이 0이면 숫자 입력을 받지 않습니다.
+		if (IsValid(BBGameState) == false
+			|| IsValid(SenderBBPlayerState) == false
+			|| BBGameState->GetCurrentTurnPlayerState() != SenderBBPlayerState
+			|| BBGameState->GetRemainingTurnTime() <= 0)
+		{
+			Sender->ClientRPCReceiveChatMessage(TEXT("현재 숫자를 입력할 수 없습니다"));
+			return;
+		}
+
 		// 규칙에 맞지 않는 입력은 발신자에게만 안내하고 판정하지 않습니다.
 		if (IsGuessNumberString(Message) == false)
 		{
@@ -109,6 +128,7 @@ void ABBGameModeBase::BroadcastChatMessage(ABBPlayerController* Sender, const FS
 		}
 
 		// 유효한 숫자 입력만 시도 횟수를 1 증가시킵니다.
+		bSubmittedGuessThisTurn = true;
 		BBPlayerState->IncreaseGuessCount();
 
 		const FString JudgeResultString = JudgeResult(SecretNumberString, Message);
@@ -130,6 +150,12 @@ void ABBGameModeBase::BroadcastChatMessage(ABBPlayerController* Sender, const FS
 		// 결과 방송 후 승리 또는 무승부 여부를 한 번만 판정합니다.
 		const int32 StrikeCount = FCString::Atoi(*JudgeResultString.Left(1));
 		JudgeGame(Sender, StrikeCount);
+
+		// 게임이 끝나지 않았다면 숫자 제출 직후 다음 플레이어에게 턴을 넘깁니다.
+		if (bGameEnded == false)
+		{
+			AdvanceTurn();
+		}
 
 		return;
 	}
@@ -225,7 +251,7 @@ FString ABBGameModeBase::JudgeResult(const FString& SecretNumber, const FString&
 
 void ABBGameModeBase::JudgeGame(ABBPlayerController* Sender, int32 StrikeCount)
 {
-	if (bGameEnded || IsValid(Sender) == false)
+	if (bGameEnded)
 	{
 		return;
 	}
@@ -236,7 +262,13 @@ void ABBGameModeBase::JudgeGame(ABBPlayerController* Sender, int32 StrikeCount)
 	// 세 자리 숫자를 모두 맞힌 플레이어를 즉시 승자로 판정합니다.
 	if (StrikeCount == 3)
 	{
+		if (IsValid(Sender) == false)
+		{
+			return;
+		}
+
 		bGameEnded = true;
+		GetWorldTimerManager().ClearTimer(TurnTimerHandle);
 
 		const APlayerState* WinnerPlayerState = Sender->PlayerState;
 		const FString WinnerName = IsValid(WinnerPlayerState)
@@ -266,6 +298,7 @@ void ABBGameModeBase::JudgeGame(ABBPlayerController* Sender, int32 StrikeCount)
 		}
 
 		bGameEnded = true;
+		GetWorldTimerManager().ClearTimer(TurnTimerHandle);
 		ResultMessage = TEXT("SYSTEM: 모든 플레이어가 기회를 소진하여 무승부입니다.");
 		BombStatus = TEXT("DETONATED");
 	}
@@ -314,4 +347,156 @@ void ABBGameModeBase::ResetGame()
 	}
 
 	UE_LOG(LogTemp, Log, TEXT("Secret Number: %s"), *SecretNumberString);
+
+	// 첫 번째 유효한 플레이어부터 새로운 턴을 시작합니다.
+	for (APlayerState* PlayerState : GameState->PlayerArray)
+	{
+		ABBPlayerState* BBPlayerState = Cast<ABBPlayerState>(PlayerState);
+		if (IsValid(BBPlayerState))
+		{
+			StartTurn(BBPlayerState);
+			break;
+		}
+	}
+}
+
+void ABBGameModeBase::StartTurn(ABBPlayerState* PlayerState)
+{
+	ABBGameStateBase* BBGameState = GetGameState<ABBGameStateBase>();
+	if (IsValid(BBGameState) == false || IsValid(PlayerState) == false || bGameEnded)
+	{
+		return;
+	}
+
+	// 서버 GameState에 현재 담당자와 초기 제한 시간을 저장합니다.
+	BBGameState->SetCurrentTurnPlayerState(PlayerState);
+	BBGameState->SetRemainingTurnTime(TurnDuration);
+	bSubmittedGuessThisTurn = false;
+
+	BroadcastTurnInfo();
+
+	// 남은 시간은 서버에서만 1초마다 감소시킵니다.
+	GetWorldTimerManager().ClearTimer(TurnTimerHandle);
+	GetWorldTimerManager().SetTimer(TurnTimerHandle, this, &ThisClass::UpdateTurnTimer, 1.f, true);
+}
+
+void ABBGameModeBase::AdvanceTurn()
+{
+	ABBGameStateBase* BBGameState = GetGameState<ABBGameStateBase>();
+	if (IsValid(BBGameState) == false || GameState->PlayerArray.IsEmpty())
+	{
+		return;
+	}
+
+	ABBPlayerState* CurrentPlayerState = BBGameState->GetCurrentTurnPlayerState();
+	const int32 CurrentIndex = GameState->PlayerArray.IndexOfByKey(CurrentPlayerState);
+	const int32 PlayerCount = GameState->PlayerArray.Num();
+
+	// 현재 플레이어 다음부터 순서대로 기회가 남은 플레이어를 찾습니다.
+	for (int32 Offset = 1; Offset <= PlayerCount; ++Offset)
+	{
+		const int32 NextIndex = (FMath::Max(CurrentIndex, 0) + Offset) % PlayerCount;
+		ABBPlayerState* NextPlayerState = Cast<ABBPlayerState>(GameState->PlayerArray[NextIndex]);
+
+		if (IsValid(NextPlayerState) && NextPlayerState->HasRemainingGuess())
+		{
+			StartTurn(NextPlayerState);
+			return;
+		}
+	}
+
+	// 누구에게도 기회가 남지 않았다면 무승부 판정을 실행합니다.
+	JudgeGame(nullptr, 0);
+}
+
+void ABBGameModeBase::UpdateTurnTimer()
+{
+	ABBGameStateBase* BBGameState = GetGameState<ABBGameStateBase>();
+	if (IsValid(BBGameState) == false || bGameEnded)
+	{
+		return;
+	}
+
+	const int32 NewRemainingTime = BBGameState->GetRemainingTurnTime() - 1;
+	BBGameState->SetRemainingTurnTime(NewRemainingTime);
+	BroadcastTurnInfo();
+
+	if (NewRemainingTime <= 0)
+	{
+		GetWorldTimerManager().ClearTimer(TurnTimerHandle);
+		HandleTurnTimeout();
+	}
+}
+
+void ABBGameModeBase::HandleTurnTimeout()
+{
+	ABBGameStateBase* BBGameState = GetGameState<ABBGameStateBase>();
+	ABBPlayerState* TimedOutPlayerState = IsValid(BBGameState)
+		? BBGameState->GetCurrentTurnPlayerState()
+		: nullptr;
+
+	if (IsValid(TimedOutPlayerState) == false)
+	{
+		return;
+	}
+
+	// 해당 턴에 숫자를 제출하지 않았다면 시간 초과로 시도 횟수를 1 사용합니다.
+	if (bSubmittedGuessThisTurn == false && TimedOutPlayerState->HasRemainingGuess())
+	{
+		TimedOutPlayerState->IncreaseGuessCount();
+	}
+
+	const FString TimeoutMessage = TEXT("SYSTEM: ")
+		+ TimedOutPlayerState->GetPlayerName()
+		+ TEXT("의 입력 시간이 종료되었습니다. ")
+		+ TimedOutPlayerState->GetGuessCountString();
+
+	for (TActorIterator<ABBPlayerController> It(GetWorld()); It; ++It)
+	{
+		ABBPlayerController* TargetController = *It;
+		if (IsValid(TargetController))
+		{
+			TargetController->ClientRPCReceiveChatMessage(TimeoutMessage);
+		}
+	}
+
+	// 시간 초과로 전원이 기회를 소진했는지 확인한 뒤 게임이 계속되면 턴을 넘깁니다.
+	JudgeGame(nullptr, 0);
+	if (bGameEnded == false)
+	{
+		AdvanceTurn();
+	}
+}
+
+void ABBGameModeBase::BroadcastTurnInfo()
+{
+	ABBGameStateBase* BBGameState = GetGameState<ABBGameStateBase>();
+	ABBPlayerState* CurrentPlayerState = IsValid(BBGameState)
+		? BBGameState->GetCurrentTurnPlayerState()
+		: nullptr;
+
+	if (IsValid(BBGameState) == false || IsValid(CurrentPlayerState) == false)
+	{
+		return;
+	}
+
+	const FString CurrentPlayerName = CurrentPlayerState->GetPlayerName();
+	const int32 RemainingTime = BBGameState->GetRemainingTurnTime();
+
+	// 각 클라이언트에는 공용 턴 정보와 자신의 개인 시도 횟수를 함께 전달합니다.
+	for (TActorIterator<ABBPlayerController> It(GetWorld()); It; ++It)
+	{
+		ABBPlayerController* TargetController = *It;
+		ABBPlayerState* TargetPlayerState = IsValid(TargetController)
+			? TargetController->GetPlayerState<ABBPlayerState>()
+			: nullptr;
+
+		if (IsValid(TargetController) && IsValid(TargetPlayerState))
+		{
+			TargetController->ClientRPCUpdateTurnInfo(
+				CurrentPlayerName,
+				RemainingTime,
+				TargetPlayerState->GetGuessCountString());
+		}
+	}
 }

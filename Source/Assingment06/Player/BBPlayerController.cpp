@@ -107,3 +107,12 @@ void ABBPlayerController::ClientRPCSetBombStatus_Implementation(const FString& S
 		BombPanelWidgetInstance->SetBombStatusText(StatusText);
 	}
 }
+
+void ABBPlayerController::ClientRPCUpdateTurnInfo_Implementation(const FString& PlayerName, int32 RemainingTime, const FString& GuessCountString)
+{
+	// 서버가 관리하는 턴 정보를 로컬 폭탄 패널에 표시합니다.
+	if (IsValid(BombPanelWidgetInstance))
+	{
+		BombPanelWidgetInstance->SetTurnInfo(PlayerName, RemainingTime, GuessCountString);
+	}
+}

@@ -107,6 +107,9 @@ void UBBChatInputWidget::AddChatMessage(const FString& Message)
 	}
 
 	ChatMessageTextBlock->SetText(FText::FromString(Message));
+	// 채팅창 너비를 넘는 긴 메시지는 문자 단위로 자동 줄바꿈합니다.
+	ChatMessageTextBlock->SetAutoWrapText(true);
+	ChatMessageTextBlock->SetWrappingPolicy(ETextWrappingPolicy::AllowPerCharacterWrapping);
 	ScrollBox_ChatHistory->AddChild(ChatMessageTextBlock);
 
 	// 새 메시지가 추가될 때 가장 최근 채팅이 보이도록 아래로 이동합니다.
