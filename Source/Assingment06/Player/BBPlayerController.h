@@ -43,6 +43,10 @@ public:
 	 */
 	UFUNCTION(Client, Reliable)
 	void ClientRPCReceiveChatMessage(const FString& Message);
+
+	/** @brief 서버가 소유 클라이언트의 폭탄 상태 화면을 갱신합니다. */
+	UFUNCTION(Client, Reliable)
+	void ClientRPCSetBombStatus(const FString& StatusText);
 	
 	/**
 	 * @brief 소유 클라이언트가 서버에 채팅 메시지 방송을 요청합니다.

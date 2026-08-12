@@ -79,6 +79,13 @@ void ABBGameModeBase::BroadcastChatMessage(ABBPlayerController* Sender, const FS
 
 	if (bIsGuessAttempt)
 	{
+		// 승리 또는 무승부 결과를 표시하는 동안에는 새로운 숫자를 판정하지 않습니다.
+		if (bGameEnded)
+		{
+			Sender->ClientRPCReceiveChatMessage(TEXT("새 게임을 준비 중입니다"));
+			return;
+		}
+
 		// 규칙에 맞지 않는 입력은 발신자에게만 안내하고 판정하지 않습니다.
 		if (IsGuessNumberString(Message) == false)
 		{
@@ -115,8 +122,14 @@ void ABBGameModeBase::BroadcastChatMessage(ABBPlayerController* Sender, const FS
 			if (IsValid(TargetController))
 			{
 				TargetController->ClientRPCReceiveChatMessage(GuessResultMessage);
+				// 폭탄 상단 화면에는 플레이어 정보 없이 판정 상태만 표시합니다.
+				TargetController->ClientRPCSetBombStatus(JudgeResultString);
 			}
 		}
+
+		// 결과 방송 후 승리 또는 무승부 여부를 한 번만 판정합니다.
+		const int32 StrikeCount = FCString::Atoi(*JudgeResultString.Left(1));
+		JudgeGame(Sender, StrikeCount);
 
 		return;
 	}
@@ -208,4 +221,97 @@ FString ABBGameModeBase::JudgeResult(const FString& SecretNumber, const FString&
 	}
 
 	return FString::Printf(TEXT("%dS%dB"), StrikeCount, BallCount);
+}
+
+void ABBGameModeBase::JudgeGame(ABBPlayerController* Sender, int32 StrikeCount)
+{
+	if (bGameEnded || IsValid(Sender) == false)
+	{
+		return;
+	}
+
+	FString ResultMessage;
+	FString BombStatus;
+
+	// 세 자리 숫자를 모두 맞힌 플레이어를 즉시 승자로 판정합니다.
+	if (StrikeCount == 3)
+	{
+		bGameEnded = true;
+
+		const APlayerState* WinnerPlayerState = Sender->PlayerState;
+		const FString WinnerName = IsValid(WinnerPlayerState)
+			? WinnerPlayerState->GetPlayerName()
+			: TEXT("Player");
+
+		ResultMessage = TEXT("SYSTEM: ") + WinnerName + TEXT("이 승리했습니다.");
+		BombStatus = TEXT("DISARMED");
+	}
+	else
+	{
+		// 한 명이라도 기회가 남아 있다면 현재 게임을 계속합니다.
+		bool bIsDraw = true;
+		for (const APlayerState* PlayerState : GameState->PlayerArray)
+		{
+			const ABBPlayerState* BBPlayerState = Cast<ABBPlayerState>(PlayerState);
+			if (IsValid(BBPlayerState) && BBPlayerState->HasRemainingGuess())
+			{
+				bIsDraw = false;
+				break;
+			}
+		}
+
+		if (bIsDraw == false)
+		{
+			return;
+		}
+
+		bGameEnded = true;
+		ResultMessage = TEXT("SYSTEM: 모든 플레이어가 기회를 소진하여 무승부입니다.");
+		BombStatus = TEXT("DETONATED");
+	}
+
+	// 상세 결과는 채팅창에, 폭탄 상태는 상단 화면에 각각 표시합니다.
+	for (TActorIterator<ABBPlayerController> It(GetWorld()); It; ++It)
+	{
+		ABBPlayerController* TargetController = *It;
+		if (IsValid(TargetController))
+		{
+			TargetController->ClientRPCReceiveChatMessage(ResultMessage);
+			TargetController->ClientRPCSetBombStatus(BombStatus);
+		}
+	}
+
+	// 결과를 확인할 시간을 준 뒤 서버에서 다음 게임을 시작합니다.
+	GetWorldTimerManager().SetTimer(ResetGameTimerHandle, this, &ThisClass::ResetGame, 3.f, false);
+}
+
+void ABBGameModeBase::ResetGame()
+{
+	// 다음 게임에 사용할 새로운 정답을 서버에서 생성합니다.
+	SecretNumberString = GenerateSecretNumber();
+
+	// 모든 플레이어의 개인별 시도 횟수를 0으로 초기화합니다.
+	for (APlayerState* PlayerState : GameState->PlayerArray)
+	{
+		ABBPlayerState* BBPlayerState = Cast<ABBPlayerState>(PlayerState);
+		if (IsValid(BBPlayerState))
+		{
+			BBPlayerState->ResetGuessCount();
+		}
+	}
+
+	bGameEnded = false;
+
+	// 새 게임 시작 사실과 초기 폭탄 상태를 모든 클라이언트에 알립니다.
+	for (TActorIterator<ABBPlayerController> It(GetWorld()); It; ++It)
+	{
+		ABBPlayerController* TargetController = *It;
+		if (IsValid(TargetController))
+		{
+			TargetController->ClientRPCReceiveChatMessage(TEXT("SYSTEM: 새로운 게임을 시작합니다."));
+			TargetController->ClientRPCSetBombStatus(TEXT("ENTER CODE"));
+		}
+	}
+
+	UE_LOG(LogTemp, Log, TEXT("Secret Number: %s"), *SecretNumberString);
 }

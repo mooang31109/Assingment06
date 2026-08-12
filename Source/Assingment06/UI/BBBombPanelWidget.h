@@ -7,6 +7,7 @@
 #include "BBBombPanelWidget.generated.h"
 
 class UBBChatInputWidget;
+class UTextBlock;
 
 /**
  * @brief 화면 전체를 담당하는 클래스
@@ -29,8 +30,15 @@ public:
 	/** @brief 폭탄 패널 내부에 배치된 채팅 위젯을 반환합니다. */
 	UBBChatInputWidget* GetChatInputWidget() const;
 
+	/** @brief 폭탄 상단 화면에 현재 해제 상태를 표시합니다. */
+	void SetBombStatusText(const FString& StatusText);
+
 protected:
 	/** @brief WBP_BBBombPanel 안에 자식으로 배치된 채팅 입력 위젯입니다. */
 	UPROPERTY(meta = (BindWidget))
 	TObjectPtr<UBBChatInputWidget> WBP_BBChatInput;
+
+	/** @brief 폭탄 해제 상태를 표시하는 상단 TextBlock입니다. */
+	UPROPERTY(meta = (BindWidget))
+	TObjectPtr<UTextBlock> TextBlock_BombStatus;
 };

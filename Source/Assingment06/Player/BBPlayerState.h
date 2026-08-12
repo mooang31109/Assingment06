@@ -36,6 +36,9 @@ public:
 	/** @brief 서버에서 유효한 숫자 입력이 처리될 때 현재 시도 횟수를 1 증가시킵니다. */
 	void IncreaseGuessCount();
 
+	/** @brief 다음 게임을 시작할 때 현재 시도 횟수를 0으로 초기화합니다. */
+	void ResetGuessCount();
+
 protected:
 	/** @brief 현재 게임에서 플레이어가 사용한 시도 횟수입니다. */
 	UPROPERTY(Replicated, BlueprintReadOnly, Category = "Number Baseball")
